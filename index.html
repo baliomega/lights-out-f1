@@ -634,6 +634,10 @@ footer{margin-top:0}
 .gbody .story{margin-top:34px}
 .gbody .gfacts{margin-top:16px;border-top:1px solid #333}
 .gbody .gfacts div{border-bottom-color:#262626}
+.visits{margin:0;max-width:none;justify-self:start;font-family:var(--display);font-weight:600;text-transform:uppercase;letter-spacing:.3px;font-size:.95rem;color:#fff;display:flex;align-items:center;gap:10px}
+.visits::before{content:"";display:inline-block;width:5px;height:1.05em;background:var(--red);transform:skewX(-20deg)}
+.visits b{font-size:1.5rem;font-weight:700}
+@media (min-width:820px){.foot{grid-template-columns:minmax(0,1fr) auto}.credit{grid-column:2;grid-row:1}.visits{grid-column:2;grid-row:2;justify-self:end}.footnotes{grid-row:1 / span 2}}
 </style>
 </head>
 <body>
@@ -860,6 +864,7 @@ footer{margin-top:0}
   <a class="credit" href="https://baliomega.github.io" target="_blank" rel="noopener">
     <span class="who2"><span class="by">Made by</span><strong>Nurul Izwan Dahlan</strong><span class="site">baliomega.github.io</span></span>
   </a>
+  <p class="visits" id="visits" hidden></p>
 </div></footer>
 
 <script>
@@ -1568,6 +1573,17 @@ var F=shuffle([
 function showF(){$("#fact").textContent=tx(F[fi]);$("#factn").textContent=(fi+1)+L(" of "," daripada ")+F.length}
 function fact(){fi=(fi+1)%F.length;showF()}
 $("#factbtn").addEventListener("click",function(){SFX.radio();fact()});fact();
+/* ---------- visitor count (only on the public GitHub Pages site) ----------
+   Uses the free Abacus counting service. Each browser is counted once: the first visit adds one, later visits only read the total. */
+var VISITS=null;
+function showVisits(){var el=$("#visits");if(VISITS==null){el.hidden=true;return}el.hidden=false;el.innerHTML="<b>"+VISITS.toLocaleString(LANG==="bm"?"ms-MY":"en-GB")+"</b> "+L(VISITS===1?"visitor so far":"visitors so far","pelawat setakat ini")}
+(function(){
+  if(location.hostname!=="baliomega.github.io"||!window.fetch)return;
+  var base="https://abacus.jasoncameron.dev/",key="baliomega.github.io/lights-out-f1-visitors",seen=store("lo_seen")==="1";
+  function ask(kind){return fetch(base+kind+"/"+key).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()})}
+  (seen?ask("get").catch(function(){return ask("hit")}):ask("hit")).then(function(d){if(d&&typeof d.value==="number"){VISITS=d.value;store("lo_seen","1");showVisits()}}).catch(function(){});
+})();
+
 /* ---------- language: English / Bahasa Malaysia ---------- */
 STAT.push(["h1.vh",0,"Lights Out: trivia Formula 1, sejarah dan Grand Prix Bahrain di Sepang"]);var TITLE_EN=document.title;
 STAT.forEach(function(e){var el=$$(e[0])[e[1]];e.el=el;if(el)e.en=el.innerHTML});
@@ -1577,7 +1593,7 @@ function setLang(l,first){
   document.title=LANG==="bm"?"Lights Out: trivia F1, sejarah dan Grand Prix Bahrain di Sepang":TITLE_EN;
   $$("#lang span").forEach(function(x){x.classList.toggle("on",x.dataset.l===LANG)});
   if(first&&LANG==="en")return;
-  resetHero();renderSessions();tick();setCircuit(cur);tower();garage();season(yr.value);rec(recK);quizStart();showF();if(SFX.relabel)SFX.relabel();
+  resetHero();renderSessions();tick();setCircuit(cur);tower();garage();season(yr.value);rec(recK);quizStart();showF();showVisits();if(SFX.relabel)SFX.relabel();
 }
 $("#lang").addEventListener("click",function(){SFX.tick();setLang(LANG==="bm"?"en":"bm")});
 setLang(LANG,true);
