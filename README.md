@@ -10,7 +10,7 @@ A single-page Formula 1 trivia site built around the 2026 Bahrain Grand Prix in 
 - F1 teams, with a head-to-head card for each pair of teammates
 - F1 history, season by season since 1950
 - All-time records, an eight-question quiz and quick facts
-- English and Bahasa Malaysia, switched from the header
+- English and Bahasa Melayu, switched from the header
 
 ## Files
 
