@@ -638,6 +638,9 @@ footer{margin-top:0}
 .visits::before{content:"";display:inline-block;width:5px;height:1.05em;background:var(--red);transform:skewX(-20deg)}
 .visits b{font-size:1.5rem;font-weight:700}
 @media (min-width:820px){.foot{grid-template-columns:minmax(0,1fr) auto}.credit{grid-column:2;grid-row:1}.visits{grid-column:2;grid-row:2;justify-self:end}.footnotes{grid-row:1 / span 2}}
+/* cards with white text get a darker stat strip so the numbers stand out */
+.dcard.wt .dstats{background:color-mix(in srgb,var(--c) 56%,#000)}
+.dcard.wt .dstats::before{opacity:.35}
 </style>
 </head>
 <body>
@@ -1144,7 +1147,7 @@ function garage(){
       story=!tot?L("Neither driver has scored a point yet this season.","Kedua-dua pemandu belum meraih sebarang mata musim ini."):a.pts===b.pts?L("The two are level on "+a.pts+" points each.","Kedua-duanya terikat dengan "+a.pts+" mata setiap seorang."):L(lead.last+" leads "+trail.last+" by "+(lead.pts-trail.pts)+" points and has scored "+Math.round(lead.pts/tot*100)+"% of the team's total.",lead.last+" mendahului "+trail.last+" dengan "+(lead.pts-trail.pts)+" mata dan menyumbang "+Math.round(lead.pts/tot*100)+"% daripada jumlah mata pasukan.");
   function side(d,i){var nm=d.n.split(" "),first=nm[0],last=nm.slice(1).join(" "),lead=D[0][2],gap=d.pos===1?"0":"-"+(lead-d.pts),sh=tot?Math.round(d.pts/tot*100)+"%":"0%",
       st=[[L("POS","TEMPAT"),d.pos],[L("PTS","MATA"),d.pts],[L("GAP","JURANG"),gap],[L("SHARE","SYER"),sh]];
-    return '<article class="dcard '+(i?"b":"a")+'" style="--c:'+d.c+";--ci:"+ink(d.c)+'" aria-label="'+d.n+'"><div class="frame"></div><div class="inner">'
+    return '<article class="dcard '+(i?"b":"a")+(ink(d.c)==="#FFFFFF"?" wt":"")+'" style="--c:'+d.c+";--ci:"+ink(d.c)+'" aria-label="'+d.n+'"><div class="frame"></div><div class="inner">'
       +'<div class="dtop"><div class="dno"><span>NO.</span><b>'+d.no+'</b></div><span class="dhel">'+helmet(t.l,i?0:1)+'</span><span class="dside">#'+d.no+' / '+t.t+'</span></div>'
       +'<div class="dmid">'+flag(d.n)+'<h4><span>'+first+'</span><span>'+last+'</span></h4></div>'
       +'<dl class="dstats">'+st.map(function(x){return '<div><dt>'+x[0]+'</dt><dd>'+x[1]+'</dd></div>'}).join("")+'<p>'+L("2026 season, after round 15","Musim 2026, selepas pusingan 15")+'</p></dl>'
