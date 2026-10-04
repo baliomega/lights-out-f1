@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sepang track simulation, Vettel's 1:34.080 | Lights Out</title>
+<meta name="description" content="Follow one lap of Sepang from above at the pace of Sebastian Vettel's 2017 race lap record, with live speed, gears, throttle and braking.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Kanit:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --grass:#55803f; --grass2:#4e783a; --verge:#73935a; --asphalt:#4b4e54; --pit:#5d6066;
+  --kerb-r:#c9142b; --kerb-w:#f3f1ea; --paint:#f6f6f1;
+  --palm:#2f5d2b; --palm2:#3f7436; --roof:#e4e6e2; --rib:#b4b9b4;
+  --panel:rgba(10,10,10,.9); --hair:rgba(255,255,255,.2); --ink:#FFFFFF; --muted:#B8B8B8;
+  --car:#E5222A; --go:#2DD885; --lift:#F6C915; --stop:#F14950;
+  --mini:#6f6f6f; --scrim:rgba(0,0,0,.6); --btn:#FFFFFF; --btn-ink:#000000; --well:rgba(255,255,255,.14);
+  --cta:#C4161C; --display:"Kanit","Arial Narrow",Arial,sans-serif; --body:"Inter","Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --grass:#173322; --grass2:#142d1e; --verge:#21432c; --asphalt:#2c2f35; --pit:#383b41;
+    --kerb-r:#b3182a; --kerb-w:#d9d7d0; --paint:#e9e9e4;
+    --palm:#0e2315; --palm2:#17341e; --roof:#8a9090; --rib:#666c6c;
+  }
+}
+:root[data-theme="dark"]{
+  --grass:#173322; --grass2:#142d1e; --verge:#21432c; --asphalt:#2c2f35; --pit:#383b41;
+  --kerb-r:#b3182a; --kerb-w:#d9d7d0; --paint:#e9e9e4;
+  --palm:#0e2315; --palm2:#17341e; --roof:#8a9090; --rib:#666c6c;
+}
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:100%;margin:0}
+body{background:var(--grass);color:var(--ink);overflow:hidden;
+  font-family:var(--body);font-size:15px;line-height:1.35}
+#stage{position:relative;height:100%;overflow:hidden}
+#view{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+.hud{position:absolute;background:var(--panel);border:1px solid var(--hair);border-radius:10px;
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.small{font-size:13px;color:var(--muted);margin:0}
+
+/* lap time, top left */
+.clock{top:12px;left:12px;padding:10px 16px 12px}
+.clock .t{font-family:var(--display);font-size:46px;font-weight:600;line-height:1;margin:2px 0 6px;white-space:nowrap}
+.brand{display:inline-flex;align-items:center;gap:7px;font-family:var(--display);font-weight:700;font-style:italic;text-transform:uppercase;font-size:15px;color:#fff;text-decoration:none;margin-bottom:6px}
+.brand::before{content:"";width:5px;height:1.05em;background:var(--car);transform:skewX(-20deg)}
+.brand:hover{color:var(--stop)}
+a:focus-visible{outline:2px solid #fff;outline-offset:3px;border-radius:3px}
+.fx{display:inline-block;width:.6em;text-align:center}
+.fx.p{width:.3em}
+.clock .who{font-weight:600;margin:0}
+
+/* mini map, top right */
+.map{top:12px;right:12px;padding:8px 10px 10px;width:236px}
+.map canvas{display:block;width:216px;height:176px}
+.map .next{margin:4px 0 0;font-family:var(--display);font-weight:600;line-height:1.2}
+.map .dist{min-height:1.35em}
+
+/* bottom dock */
+.dock{left:12px;right:12px;bottom:12px;padding:12px 14px;display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;gap:6px 22px;align-items:center}
+.tele{display:flex;align-items:center;gap:18px}
+.speed{display:flex;align-items:baseline;gap:6px}
+.speed b{font-family:var(--display);font-size:60px;font-weight:600;line-height:.9;min-width:1.8em;text-align:right;display:inline-block}
+.gear{text-align:center;border:1px solid var(--hair);border-radius:8px;padding:2px 10px 4px;min-width:54px}
+.gear b{display:block;font-family:var(--display);font-weight:600;font-size:30px;line-height:1}
+.pedals{display:grid;grid-template-columns:auto 132px;gap:5px 8px;align-items:center;font-size:13px}
+.bar{height:12px;background:var(--well);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;border-radius:3px}
+#thr{background:var(--go)} #brk{background:var(--stop)}
+.status{grid-column:1/-1;font-family:var(--display);font-weight:600;text-transform:uppercase;letter-spacing:.3px;font-size:14px;min-height:1.35em}
+.status[data-s="brake"]{color:var(--stop)} .status[data-s="full"]{color:var(--go)} .status[data-s="part"]{color:var(--lift)}
+.tracewrap{min-width:0}
+#trace{display:block;width:100%;height:92px;cursor:ew-resize;border-radius:6px;touch-action:none}
+.legend{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:12px;color:var(--muted);margin:3px 0 0}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+.ctl{display:grid;grid-template-columns:repeat(2,auto);gap:6px;justify-content:end}
+.ctl .row{display:flex;gap:6px;grid-column:1/-1;justify-content:flex-end}
+button,.linkbtn{font-family:var(--display);font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.3px;color:var(--ink);background:transparent;border:1.5px solid #5A5A5A;
+  border-radius:35px;min-height:36px;padding:4px 14px;cursor:pointer;white-space:nowrap}
+.linkbtn{display:inline-flex;align-items:center;text-decoration:none;min-height:46px;padding:8px 20px;font-size:14px}
+.linkbtn:hover{background:var(--well)}
+.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+button:hover{background:var(--well)}
+button:focus-visible,#trace:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--btn);color:var(--btn-ink);border-color:var(--btn)}
+#snd[aria-pressed="true"]{background:transparent;color:#fff;border-color:#5A5A5A}
+#snd[aria-pressed="false"]{color:var(--muted);border-color:#3A3A3A}
+button.primary{background:var(--cta);border-color:var(--cta);color:#fff;min-height:46px;padding:8px 24px;font-size:15px;letter-spacing:.4px}
+button.primary:hover{filter:brightness(1.12);background:var(--cta)}
+.seg{display:flex}
+.seg button{border-radius:0;margin-left:-1px;padding:4px 10px}
+.seg button{margin-left:-1.5px}
+.seg button:first-child{border-radius:35px 0 0 35px;margin-left:0;padding-left:14px}
+.seg button:last-child{border-radius:0 35px 35px 0;padding-right:14px}
+
+/* intro + finish cards */
+.overlay{position:absolute;inset:0;display:grid;place-items:center;padding:20px;background:var(--scrim)}
+.overlay[hidden]{display:none}
+.card{background:var(--panel);border:1px solid var(--hair);border-radius:10px;
+  padding:26px 30px 28px;max-width:560px;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.card h1{font-family:var(--display);text-transform:uppercase;font-size:clamp(32px,5.6vw,50px);line-height:.98;margin:0 0 14px;font-weight:700}
+.card p{margin:0 0 14px;font-size:17px;max-width:46ch}
+.card .small{font-size:13px;margin-top:16px;max-width:60ch}
+.finish{background:transparent;pointer-events:none;place-items:start center;padding-top:14vh}
+.finish .card{pointer-events:auto}
+.finish .big{font-family:var(--display);font-size:clamp(48px,9vw,76px);font-weight:600;line-height:1;margin:0 0 10px}
+
+@media (max-width:900px){
+  .dock{grid-template-columns:minmax(0,1fr);gap:8px;padding:10px 12px}
+  .ctl{justify-content:start;grid-template-columns:auto}
+  .ctl .row{justify-content:flex-start;flex-wrap:wrap}
+  #trace{height:60px}
+  .speed b{font-size:42px}
+  .tele{gap:10px}
+  .gear{min-width:46px;padding:2px 6px 4px}
+  .gear b{font-size:24px}
+  .pedals{flex:1;min-width:0;grid-template-columns:auto minmax(0,1fr);gap:3px 6px;font-size:12px}
+  .bar{height:10px}
+  .status{font-size:13px}
+  .clock{padding:8px 12px 9px}
+  .clock .t{font-size:32px}
+  .clock .rec{display:none}
+  .map{width:150px;padding:6px 8px 8px}
+  .map canvas{width:132px;height:108px}
+  .map .next{font-size:13px}
+  .legend{display:none}
+}
+@media (max-width:420px){
+  .clock .who{font-size:12px}
+  .clock .t{font-size:27px}
+  .map{width:138px}
+  .map canvas{width:120px;height:98px}
+  button{padding:4px 9px}
+}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="view" aria-label="Top-down view following the car around Sepang"></canvas>
+
+  <div class="hud clock">
+    <a class="brand" href="index.html" aria-label="Back to Lights Out">Lights Out</a>
+    <p class="small">Lap time</p>
+    <div class="t" id="clock" aria-live="off"></div>
+    <p class="who">Sebastian Vettel, Ferrari SF70H</p>
+    <p class="small rec">Race lap record, 2017 Malaysian Grand Prix</p>
+  </div>
+
+  <div class="hud map">
+    <canvas id="mini" aria-label="Circuit map showing the car's position"></canvas>
+    <p class="next" id="next">Pit straight</p>
+    <p class="small dist" id="dist"></p>
+  </div>
+
+  <div class="hud dock">
+    <div class="tele">
+      <div class="speed"><b id="spd">0</b><span class="small">km/h</span></div>
+      <div class="gear"><span class="small">Gear</span><b id="gear">1</b></div>
+      <div class="pedals">
+        <span>Throttle</span><div class="bar"><i id="thr"></i></div>
+        <span>Brake</span><div class="bar"><i id="brk"></i></div>
+        <div class="status" id="status" data-s="full">Full throttle</div>
+      </div>
+    </div>
+    <div class="tracewrap">
+      <canvas id="trace" tabindex="0" role="slider" aria-label="Position in the lap, in seconds" aria-valuemin="0" aria-valuemax="94" aria-valuenow="0"></canvas>
+      <div class="legend">
+        <span><i style="background:var(--go)"></i>On the throttle</span>
+        <span><i style="background:var(--lift)"></i>Lifting or part throttle</span>
+        <span><i style="background:var(--stop)"></i>Braking</span>
+        <span>Speed over the lap. Drag to jump to any point.</span>
+      </div>
+    </div>
+    <div class="ctl">
+      <div class="row">
+        <button id="play" type="button">Pause</button>
+        <button id="restart" type="button">Restart the lap</button>
+        <div class="seg" role="group" aria-label="Playback speed">
+          <button type="button" data-rate="0.5" aria-pressed="false">0.5×</button>
+          <button type="button" data-rate="1" aria-pressed="true">1×</button>
+          <button type="button" data-rate="2" aria-pressed="false">2×</button>
+        </div>
+      </div>
+      <div class="row">
+        <button id="cam" type="button">Camera: north up</button>
+        <div class="seg" role="group" aria-label="Zoom">
+          <button id="zout" type="button" aria-label="Zoom out">−</button>
+          <button id="zin" type="button" aria-label="Zoom in">+</button>
+        </div>
+        <button id="snd" type="button" aria-pressed="true">Sound on</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="intro">
+    <div class="card">
+      <h1>One lap of Sepang, seen from above</h1>
+      <p>Follow car 5 through all 15 corners at the pace of Sebastian Vettel's 1:34.080, the race lap record he set in the Ferrari SF70H at the 2017 Malaysian Grand Prix.</p>
+      <div class="actions"><button class="primary" id="start" type="button">Start the lap</button><a class="linkbtn" href="index.html">Back to Lights Out</a></div>
+      <p class="small" id="sndnote">Sound is on. You can switch it off in the controls.</p>
+      <p class="small">The circuit shape is the real 5.543 km layout. Speed, throttle and brake are simulated to match the record lap time. They are not Vettel's actual telemetry.</p>
+    </div>
+  </div>
+
+  <div class="overlay finish" id="done" hidden>
+    <div class="card">
+      <p class="small">Lap complete</p>
+      <div class="big">1:34.080</div>
+      <p id="stats"></p>
+      <div class="actions"><button class="primary" id="again" type="button">Start the lap again</button><a class="linkbtn" href="index.html">Back to Lights Out</a></div>
+    </div>
+  </div>
+</div>
+<script>
+const RAW=[1.2,-3.5,-3.8,-3.9,-8.7,-4.3,-13.7,-4.7,-18.7,-5.1,-23.7,-5.6,-28.7,-6,-33.7,-6.4,-38.6,-6.8,-43.6,-7.2,-48.6,-7.7,-53.6,-8.1,-58.6,-8.5,-63.6,-8.9,-68.6,-9.3,-73.5,-9.8,-78.5,-10.2,-83.5,-10.6,-88.5,-11,-93.5,-11.4,-98.5,-11.8,-103.4,-12.3,-108.4,-12.7,-113.4,-13.1,-118.4,-13.5,-123.4,-13.9,-128.4,-14.3,-133.3,-14.7,-138.3,-15.2,-143.3,-15.6,-148.3,-16,-153.3,-16.4,-158.3,-16.8,-163.3,-17.2,-168.2,-17.6,-173.2,-18.1,-178.2,-18.5,-183.2,-18.9,-188.2,-19.3,-193.2,-19.7,-198.1,-20.1,-203.1,-20.5,-208.1,-21,-213.1,-21.4,-218.1,-21.8,-223.1,-22.2,-228,-22.6,-233,-23,-238,-23.5,-243,-23.9,-248,-24.3,-253,-24.7,-258,-25.1,-262.9,-25.5,-267.9,-26,-272.9,-26.4,-277.9,-26.8,-282.9,-27.2,-287.9,-27.6,-292.8,-28,-297.8,-28.5,-302.8,-28.9,-307.8,-29.3,-312.8,-29.7,-317.8,-30.1,-322.7,-30.5,-327.7,-31,-332.7,-31.4,-337.7,-31.8,-342.7,-32.2,-347.7,-32.6,-352.6,-33,-357.6,-33.5,-362.6,-33.9,-367.6,-34.3,-372.6,-34.7,-377.6,-35.1,-382.6,-35.6,-387.5,-36,-392.5,-36.4,-397.5,-36.8,-402.5,-37.2,-407.5,-37.6,-412.5,-38.1,-417.4,-38.5,-422.4,-38.9,-427.4,-39.3,-432.4,-39.7,-437.4,-40.2,-442.4,-40.6,-447.3,-41,-452.3,-41.4,-457.3,-41.8,-462.3,-42.2,-467.3,-42.7,-472.3,-43.1,-477.3,-43.5,-482.2,-43.9,-487.2,-44.3,-492.2,-44.8,-497.2,-45.2,-502.2,-45.6,-507.2,-46,-512.1,-46.4,-517.1,-46.8,-522.1,-47.3,-527.1,-47.7,-532.1,-48.1,-537.1,-48.5,-542.1,-48.9,-547,-49.4,-552,-49.8,-557,-50.2,-562,-50.6,-567,-51,-572,-51.4,-577,-51.9,-581.9,-52.2,-586.9,-52.6,-591.9,-52.8,-596.9,-53,-601.9,-53.1,-606.9,-53,-611.9,-52.7,-616.8,-52.3,-621.7,-51.4,-626.1,-49.4,-629.9,-46,-633.1,-42.1,-635.7,-37.8,-637.6,-33.2,-638.9,-28.5,-639.8,-23.5,-640.2,-18.5,-640.3,-13.5,-639.9,-8.6,-639,-3.7,-637.4,1,-635.2,5.5,-632.3,9.7,-628.8,13.3,-624.8,16.1,-620.3,18,-615.5,19,-610.5,19.1,-605.5,18.5,-600.6,17.5,-595.7,16.3,-590.9,15,-586.1,13.4,-581.4,11.8,-576.7,10.2,-572,8.7,-567.1,7.5,-562.2,6.9,-557.1,6.9,-552.1,7.7,-547.4,9.3,-543.2,11.8,-539.7,15.3,-537.2,19.5,-535.7,24.3,-535.1,29.3,-535.5,34.2,-536.8,38.9,-538.9,43.4,-541.5,47.7,-544.4,51.8,-547.4,55.9,-550.4,60,-553.4,64,-556.4,67.9,-559.3,71.9,-562.3,76,-565.1,80,-567.8,84.2,-570.4,88.4,-572.9,92.8,-575.2,97.3,-577.4,101.8,-579.3,106.4,-581.2,111.1,-582.8,115.9,-584.2,120.7,-585.5,125.5,-586.6,130.4,-587.4,135.3,-588.1,140.2,-588.6,145.2,-589,150.1,-589.2,155.1,-589.3,160.1,-589.3,165.1,-589.2,170.1,-588.9,175.1,-588.6,180.1,-588.2,185.1,-587.7,190.1,-587.2,195.1,-586.6,200,-586,205,-585.4,210,-584.7,214.9,-584.1,219.9,-583.3,224.8,-582.4,229.7,-581.3,234.5,-579.9,239.4,-578.4,244.1,-576.6,248.8,-574.7,253.5,-572.7,258.1,-570.6,262.6,-568.4,267.1,-566.1,271.5,-563.7,275.8,-561.2,280.2,-558.5,284.4,-555.8,288.6,-552.9,292.7,-549.9,296.7,-546.8,300.6,-543.4,304.3,-540,307.9,-536.3,311.2,-532.5,314.5,-528.6,317.6,-524.5,320.5,-520.4,323.4,-516.2,326.2,-512,328.8,-507.7,331.4,-503.4,333.9,-499,336.3,-494.5,338.6,-490,340.7,-485.5,342.8,-480.9,344.7,-476.2,346.5,-471.6,348.3,-466.8,349.9,-462.1,351.5,-457.3,353,-452.6,354.5,-447.8,356,-443,357.5,-438.2,358.9,-433.4,360.4,-428.6,361.9,-423.9,363.4,-419.1,364.9,-414.3,366.5,-409.6,368,-404.8,369.5,-400.1,371.1,-395.3,372.7,-390.6,374.3,-385.9,375.9,-381.1,377.5,-376.4,379.2,-371.7,380.8,-367,382.5,-362.3,384.2,-357.6,385.9,-352.9,387.6,-348.2,389.3,-343.5,391,-338.8,392.8,-334.1,394.5,-329.4,396.3,-324.7,398.1,-320.1,399.8,-315.4,401.6,-310.7,403.4,-306.1,405.2,-301.4,407.1,-296.8,408.9,-292.1,410.7,-287.4,412.6,-282.8,414.4,-278.2,416.2,-273.5,418.1,-268.9,420,-264.2,421.8,-259.6,423.7,-254.9,425.6,-250.3,427.4,-245.7,429.3,-241,431.2,-236.4,433.1,-231.8,434.9,-227.1,436.8,-222.5,438.7,-217.9,440.6,-213.2,442.5,-208.6,444.4,-204,446.3,-199.4,448.2,-194.8,450.2,-190.1,452.1,-185.5,454,-180.9,456,-176.4,458,-171.8,460,-167.2,462,-162.6,464,-158,466,-153.5,468.1,-148.9,470.2,-144.4,472.2,-139.8,474.3,-135.3,476.4,-130.7,478.5,-126.1,480.5,-121.5,482.3,-116.8,483.9,-112,484.9,-107.1,484.7,-102.2,483.4,-97.5,481.5,-92.8,479.5,-88.6,476.9,-85.6,473.2,-84,468.5,-82.9,463.7,-82,458.8,-81.3,453.8,-80.6,448.8,-79.9,443.8,-79.2,438.9,-78.5,433.9,-77.7,429,-76.9,424.1,-76.1,419.1,-75.2,414.2,-74.3,409.3,-73.4,404.4,-72.4,399.5,-71.4,394.6,-70.5,389.7,-69.5,384.8,-68.5,379.9,-67.5,375,-66.5,370.1,-65.5,365.1,-64.5,360.2,-63.5,355.3,-62.5,350.4,-61.5,345.5,-60.5,340.6,-59.5,335.7,-58.5,330.8,-57.5,325.9,-56.5,321,-55.5,316.1,-54.5,311.2,-53.5,306.3,-52.6,301.4,-51.6,296.5,-50.6,291.6,-49.6,286.7,-48.6,281.8,-47.6,276.9,-46.6,272,-45.6,267.1,-44.5,262.2,-43.5,257.3,-42.4,252.5,-41.2,247.6,-39.9,242.8,-38.4,238,-36.7,233.3,-34.8,228.7,-32.6,224.2,-30.2,219.8,-27.6,215.5,-24.8,211.4,-21.9,207.4,-18.8,203.5,-15.6,199.6,-12.3,195.8,-8.8,192.2,-5.3,188.7,-1.5,185.4,2.4,182.3,6.5,179.5,10.8,177,15.2,174.6,19.7,172.4,24.2,170.3,28.9,168.4,33.6,166.7,38.3,165.3,43.2,164.1,48.1,163.1,53,162.3,58,161.7,63,161.2,67.9,160.9,72.9,160.7,77.9,160.8,82.9,161.1,87.8,161.7,92.7,162.5,97.6,163.6,102.5,164.7,107.4,166,112.2,167.4,116.9,169.1,121.6,170.9,126.1,173,130.4,175.3,134.7,177.9,138.8,180.7,142.9,183.7,146.8,186.8,150.6,190,154.4,193.4,158.1,196.8,161.7,200.2,165.2,203.7,168.7,207.3,172,211,175.3,214.8,178.5,218.7,181.9,222.3,185.7,225.5,189.7,228.5,193.8,231.4,198,234.1,202.3,236.6,206.7,239,211.2,241.1,215.9,243,220.6,244.6,225.4,245.9,230.3,246.9,235.3,247.5,240.3,247.8,245.2,247.6,250.1,247.2,255.1,246.5,260.1,245.6,265,244.5,269.8,243.2,274.6,241.7,279.2,240,283.8,238,288.3,236,292.8,233.7,297.2,231.3,301.5,228.8,305.7,226,309.7,223,313.5,219.8,317.2,216.5,320.7,213,324.2,209.4,327.6,205.7,330.9,202,334.3,198.3,337.6,194.5,340.9,190.8,344.2,187,347.5,183.3,350.8,179.5,354.1,175.8,357.4,172,360.8,168.3,364.1,164.5,367.4,160.8,370.7,157,374,153.3,377.3,149.5,380.7,145.8,384,142.1,387.3,138.3,390.6,134.6,393.9,130.8,397.2,127.1,400.5,123.3,403.9,119.6,407.2,115.8,410.5,112.1,413.8,108.3,417.1,104.6,420.4,100.8,423.7,97.1,427,93.3,430.3,89.5,433.6,85.8,436.9,82,440.2,78.3,443.4,74.5,446.7,70.7,450,66.9,453.3,63.2,456.6,59.4,459.8,55.6,463.1,51.8,466.4,48,469.6,44.2,472.9,40.4,476.2,36.7,479.5,32.9,482.7,29.1,486,25.3,489.3,21.5,492.6,17.8,495.9,14,499.2,10.3,502.4,6.6,505.6,2.7,508.6,-1.3,511.4,-5.6,513.9,-10.1,515.6,-14.7,516.3,-19.4,515.7,-24.1,513.7,-28.8,511.3,-33.4,509.1,-38,507.1,-42.4,505,-46.9,502.9,-51.5,500.8,-56,498.6,-60.5,496.5,-65.1,494.4,-69.6,492.3,-74.2,490.2,-78.7,488,-83.2,485.8,-87.7,483.8,-92.3,481.9,-97,479.6,-101.3,476.3,-104.8,472.1,-107.5,467.6,-109.9,463.1,-112.1,458.4,-113.6,453.5,-114.5,448.6,-114.9,443.6,-115,438.6,-115.1,433.5,-115.2,428.5,-115.3,423.5,-115.5,418.6,-115.8,413.6,-116,408.6,-116.2,403.6,-116.4,398.6,-116.7,393.6,-116.9,388.6,-117.1,383.6,-117.3,378.6,-117.4,373.6,-117.6,368.6,-117.7,363.6,-117.8,358.6,-118,353.6,-118.2,348.6,-118.4,343.6,-118.8,338.6,-119.2,333.6,-119.6,328.7,-120.1,323.7,-120.6,318.7,-121.1,313.7,-121.6,308.8,-122.1,303.8,-122.6,298.8,-123.2,293.8,-123.7,288.9,-124.3,283.9,-124.8,278.9,-125.4,274,-126,269,-126.6,264,-127.2,259.1,-127.8,254.1,-128.4,249.1,-129,244.2,-129.7,239.2,-130.3,234.3,-130.9,229.3,-131.5,224.3,-132.1,219.4,-132.8,214.4,-133.4,209.4,-134,204.5,-134.7,199.5,-135.3,194.6,-135.9,189.6,-136.6,184.6,-137.2,179.7,-137.9,174.7,-138.5,169.8,-139.1,164.8,-139.8,159.8,-140.4,154.9,-141,149.9,-141.7,145,-142.3,140,-142.9,135,-143.6,130.1,-144.2,125.1,-144.8,120.1,-145.4,115.2,-146.1,110.2,-146.7,105.3,-147.3,100.3,-148,95.3,-148.6,90.4,-149.2,85.4,-149.9,80.5,-150.5,75.5,-151.2,70.5,-151.8,65.6,-152.5,60.6,-153.1,55.7,-153.7,50.7,-154.4,45.7,-155,40.8,-155.6,35.8,-156.2,30.8,-156.8,25.9,-157.4,20.9,-158,15.9,-158.7,11,-159.5,6.1,-160.5,1.8,-162.5,-1.3,-166.1,-3.3,-170.8,-4.4,-175.9,-4.7,-181.1,-3.5,-185.7,-0.7,-189.6,3.1,-192.8,7.1,-195.8,11.3,-198.5,15.6,-201.1,19.9,-203.6,24.3,-206.1,28.5,-208.7,32.8,-211.3,37.1,-213.9,41.3,-216.6,45.5,-219.2,49.8,-221.9,54,-224.5,58.3,-227.2,62.6,-229.8,66.7,-232.6,70.7,-235.5,74.5,-238.7,78,-242.2,81.3,-246,84.3,-250,87.1,-254.2,89.7,-258.5,92.2,-262.9,94.4,-267.3,96.3,-271.9,97.8,-276.6,98.8,-281.4,99.4,-286.4,99.8,-291.4,100,-296.5,100.2,-301.5,100.2,-306.5,100.2,-311.5,100.1,-316.5,99.9,-321.5,99.6,-326.5,99.2,-331.4,98.6,-336.4,98,-341.3,97.2,-346.3,96.2,-351.2,95.2,-356.1,94,-360.9,92.6,-365.8,91.2,-370.6,89.7,-375.3,88,-380,86.2,-384.7,84.3,-389.3,82.3,-393.9,80.2,-398.4,78,-402.9,75.8,-407.4,73.5,-411.8,71.1,-416.2,68.6,-420.6,65.9,-424.8,63.2,-429,60.4,-433.1,57.5,-437.2,54.6,-441.3,51.6,-445.3,48.4,-449.1,45,-452.7,41.1,-455.8,36.8,-458.1,32,-459.4,27,-459.8,22.1,-459.7,17,-459.2,12.1,-458.2,7.6,-456.2,3.5,-453.3,-0.4,-450.2,-4.3,-447.1,-8.2,-444,-12.1,-440.8,-16,-437.6,-19.8,-434.4,-23.7,-431.2,-27.5,-428.1,-31.4,-424.9,-35.2,-421.7,-39.1,-418.5,-43,-415.3,-46.8,-412.1,-50.7,-409,-54.5,-405.8,-58.4,-402.6,-62.3,-399.4,-66.1,-396.3,-70,-393.1,-73.8,-389.9,-77.7,-386.7,-81.6,-383.6,-85.4,-380.4,-89.3,-377.2,-93.2,-374,-97,-370.8,-100.9,-367.7,-104.8,-364.5,-108.6,-361.3,-112.5,-358.1,-116.3,-354.9,-120.2,-351.8,-124.1,-348.6,-127.9,-345.4,-131.8,-342.2,-135.6,-339,-139.5,-335.8,-143.4,-332.7,-147.2,-329.5,-151.1,-326.3,-154.9,-323.1,-158.8,-320,-162.7,-316.8,-166.5,-313.6,-170.4,-310.5,-174.3,-307.3,-178.1,-304.1,-182,-301,-185.8,-297.8,-189.7,-294.6,-193.6,-291.4,-197.4,-288.2,-201.3,-284.9,-205.2,-281.7,-209.1,-278.7,-213.2,-275.9,-217.5,-273.4,-222,-271.4,-226.7,-269.8,-231.5,-268.5,-236.4,-267.6,-241.4,-266.9,-246.5,-266.6,-251.5,-266.7,-256.5,-267.2,-261.3,-268.2,-266.1,-269.6,-270.7,-271.4,-275.2,-273.4,-279.7,-275.6,-284.1,-278,-288.4,-280.5,-292.7,-283.1,-297,-285.7,-301.3,-288.3,-305.6,-290.9,-309.9,-293.4,-314.2,-295.9,-318.6,-298.3,-323,-300.6,-327.5,-302.8,-332,-305,-336.5,-307.1,-341,-309.3,-345.6,-311.3,-350.2,-313.4,-354.8,-315.3,-359.4,-317.2,-364.1,-318.9,-368.9,-320.4,-373.7,-321.6,-378.6,-322.4,-383.5,-323,-388.5,-323.3,-393.5,-323.4,-398.6,-323.4,-403.6,-323.5,-408.6,-323.4,-413.6,-323.4,-418.6,-323.2,-423.6,-322.8,-428.6,-322.4,-433.5,-321.7,-438.4,-320.9,-443.3,-319.8,-448.1,-318.6,-452.9,-317.1,-457.6,-315.4,-462.3,-313.6,-466.9,-311.6,-471.4,-309.4,-475.8,-307.1,-480.1,-304.6,-484.2,-301.9,-488.3,-299,-492.3,-295.9,-496.1,-292.7,-499.9,-289.5,-503.6,-286.1,-507.2,-282.6,-510.7,-279,-514,-275.3,-517.2,-271.4,-520.1,-267.4,-522.6,-263.1,-524.9,-258.7,-527,-254.2,-529,-249.5,-530.6,-244.7,-531.8,-239.9,-532.3,-235,-532.1,-230.1,-531.3,-225.2,-530,-220.3,-528.3,-215.6,-526.1,-211,-523.4,-206.9,-519.9,-203.4,-515.8,-200.6,-511.3,-198.6,-506.6,-197.1,-501.7,-196,-496.8,-195.1,-491.8,-194.3,-486.8,-193.4,-481.9,-192.5,-477,-191.5,-472.1,-190.6,-467.2,-189.6,-462.3,-188.7,-457.4,-187.7,-452.5,-186.8,-447.6,-185.8,-442.7,-184.9,-437.8,-183.9,-432.9,-183,-428,-182,-423,-181,-418.1,-180.1,-413.2,-179.2,-408.3,-178.2,-403.4,-177.3,-398.5,-176.4,-393.5,-175.5,-388.6,-174.6,-383.7,-173.7,-378.8,-172.8,-373.8,-172,-368.9,-171.1,-364,-170.2,-359.1,-169.4,-354.1,-168.6,-349.2,-167.7,-344.3,-166.9,-339.3,-166.1,-334.4,-165.3,-329.5,-164.4,-324.5,-163.6,-319.6,-162.8,-314.7,-162,-309.7,-161.2,-304.8,-160.3,-299.9,-159.5,-294.9,-158.7,-290,-157.9,-285.1,-157,-280.1,-156.2,-275.2,-155.4,-270.3,-154.5,-265.3,-153.7,-260.4,-152.8,-255.5,-152,-250.6,-151.2,-245.6,-150.3,-240.7,-149.5,-235.8,-148.7,-230.8,-147.8,-225.9,-147,-221,-146.1,-216,-145.3,-211.1,-144.5,-206.2,-143.7,-201.2,-142.8,-196.3,-142,-191.4,-141.2,-186.4,-140.4,-181.5,-139.5,-176.6,-138.7,-171.6,-137.9,-166.7,-137.1,-161.8,-136.3,-156.8,-135.5,-151.9,-134.6,-147,-133.8,-142,-133,-137.1,-132.2,-132.2,-131.4,-127.2,-130.6,-122.3,-129.7,-117.4,-128.9,-112.4,-128.1,-107.5,-127.3,-102.6,-126.5,-97.6,-125.6,-92.7,-124.8,-87.8,-124,-82.8,-123.1,-77.9,-122.3,-73,-121.5,-68,-120.6,-63.1,-119.8,-58.2,-118.9,-53.2,-118.1,-48.3,-117.2,-43.4,-116.4,-38.5,-115.5,-33.5,-114.7,-28.6,-113.8,-23.7,-112.9,-18.8,-112.1,-13.8,-111.2,-8.9,-110.3,-4,-109.4,0.9,-108.5,5.9,-107.7,10.8,-106.8,15.7,-105.9,20.6,-105,25.5,-104.1,30.5,-103.2,35.4,-102.3,40.3,-101.4,45.2,-100.5,50.2,-99.6,55.1,-98.7,60,-97.8,64.9,-96.9,69.8,-96,74.8,-95.1,79.7,-94.2,84.6,-93.4,89.5,-92.5,94.4,-91.6,99.4,-90.7,104.3,-89.8,109.2,-88.9,114.1,-88,119,-87.1,124,-86.2,128.9,-85.3,133.8,-84.4,138.7,-83.5,143.7,-82.7,148.6,-81.8,153.5,-80.9,158.4,-80.1,163.4,-79.2,168.3,-78.4,173.2,-77.5,178.1,-76.7,183.1,-75.9,188,-75.1,193,-74.3,197.9,-73.5,202.8,-72.7,207.8,-71.9,212.7,-71.2,217.7,-70.4,222.6,-69.7,227.6,-68.9,232.5,-68.2,237.4,-67.4,242.4,-66.5,247.3,-65.6,252.2,-64.7,257.1,-63.7,262,-62.7,266.9,-61.7,271.8,-60.6,276.7,-59.6,281.6,-58.5,286.5,-57.5,291.4,-56.5,296.3,-55.5,301.2,-54.6,306.1,-53.6,311,-52.7,315.9,-51.7,320.8,-50.5,325.6,-49.2,330.2,-47.5,334.7,-45.4,339,-42.8,343,-39.7,346.7,-36.2,349.9,-32.4,352.6,-28.3,354.6,-23.8,355.6,-19,355.7,-14,355.3,-8.9,354.6,-4,353.3,0.8,351.4,5.4,349,9.8,346.3,14,343.1,17.8,339.2,20.9,334.7,23.2,329.9,24.5,325.1,25.1,320.1,25,315.1,24.6,310.1,24.1,305.1,23.6,300.1,23.1,295.1,22.6,290.2,22.2,285.2,21.7,280.2,21.2,275.2,20.8,270.2,20.3,265.3,19.9,260.3,19.4,255.3,19,250.3,18.5,245.4,18.1,240.4,17.6,235.4,17.2,230.4,16.7,225.4,16.3,220.4,15.8,215.5,15.4,210.5,14.9,205.5,14.5,200.5,14,195.5,13.6,190.6,13.1,185.6,12.7,180.6,12.2,175.6,11.8,170.6,11.3,165.7,10.9,160.7,10.4,155.7,10,150.7,9.5,145.7,9.1,140.7,8.6,135.8,8.2,130.8,7.8,125.8,7.3,120.8,6.9,115.8,6.4,110.9,6,105.9,5.6,100.9,5.1,95.9,4.7,90.9,4.3,85.9,3.8,81,3.4,76,3,71,2.5,66,2.1,61,1.7,56,1.2,51.1,0.8,46.1,0.4,41.1,-0.1,36.1,-0.5,31.1,-0.9,26.1,-1.3,21.2,-1.8,16.2,-2.2,11.2,-2.6,6.2,-3];
+/* ---------- track geometry + lap simulation ---------- */
+function buildTrack(raw, LEN){
+  const N=raw.length/2, X=new Float64Array(N), Y=new Float64Array(N);
+  let L0=0;
+  for(let i=0;i<N;i++){const j=(i+1)%N;L0+=Math.hypot(raw[2*j]-raw[2*i],raw[2*j+1]-raw[2*i+1]);}
+  const k=LEN/L0;
+  for(let i=0;i<N;i++){X[i]=raw[2*i]*k;Y[i]=raw[2*i+1]*k;}
+  const DS=new Float64Array(N), S=new Float64Array(N+1), H=new Float64Array(N);
+  for(let i=0;i<N;i++){const j=(i+1)%N;DS[i]=Math.hypot(X[j]-X[i],Y[j]-Y[i]);S[i+1]=S[i]+DS[i];H[i]=Math.atan2(Y[j]-Y[i],X[j]-X[i]);}
+  const K0=new Float64Array(N), K=new Float64Array(N);
+  for(let i=0;i<N;i++){const p=(i-1+N)%N;let d=H[i]-H[p];d=Math.atan2(Math.sin(d),Math.cos(d));K0[i]=d/((DS[i]+DS[p])/2);}
+  const R=4;
+  for(let i=0;i<N;i++){let a=0;for(let j=-R;j<=R;j++)a+=K0[(i+j+N)%N];K[i]=a/(2*R+1);}
+  return {N,X,Y,DS,S,H,K,L:S[N],k};
+}
+const PHY={A:19.6,B:0.0061,CAP:57,POW:930,CD:0.00125,VMAX:97};
+function solveLap(trk, REC){
+  const {N,DS,K}=trk;
+  const latMax=(v,g)=>Math.min(g*(PHY.A+PHY.B*v*v),g*PHY.CAP);
+  const trac=(v,g)=>g*(12+0.004*v*v);
+  const brk=(v,g)=>g*(18+0.0045*v*v);
+  function run(g){
+    const V=new Float64Array(N);
+    for(let i=0;i<N;i++){const k=Math.abs(K[i]);let v2=Infinity;
+      if(k>1e-5){v2=g*PHY.CAP/k; if(k>g*PHY.B) v2=Math.min(v2,g*PHY.A/(k-g*PHY.B));}
+      V[i]=Math.min(PHY.VMAX,Math.sqrt(v2));}
+    for(let pass=0;pass<2;pass++){
+      for(let n=0;n<N;n++){const i=n,j=(n+1)%N,v=V[i];
+        const u=Math.min(1,v*v*Math.abs(K[i])/latMax(v,g));
+        const a=Math.min(PHY.POW/Math.max(v,8),trac(v,g)*Math.sqrt(1-u*u))-PHY.CD*v*v;
+        const v2=Math.sqrt(Math.max(v*v+2*a*DS[i],1)); if(v2<V[j])V[j]=v2;}
+      for(let n=N;n>0;n--){const j=n%N,i=n-1,v=V[j];
+        const u=Math.min(1,v*v*Math.abs(K[j])/latMax(v,g));
+        const b=brk(v,g)*Math.sqrt(1-u*u)+PHY.CD*v*v;
+        const v2=Math.sqrt(v*v+2*b*DS[i]); if(v2<V[i])V[i]=v2;}
+    }
+    let t=0;for(let i=0;i<N;i++)t+=2*DS[i]/(V[i]+V[(i+1)%N]);
+    return {V,t};
+  }
+  let lo=0.5,hi=2.2,r;
+  for(let it=0;it<40;it++){const g=(lo+hi)/2;r=run(g); if(r.t>REC)lo=g;else hi=g;}
+  const g=(lo+hi)/2; r=run(g);
+  const f=r.t/REC;                       // tiny final correction so the lap is exact
+  const V=r.V.map(v=>v*f), T=new Float64Array(N+1);
+  for(let i=0;i<N;i++)T[i+1]=T[i]+2*DS[i]/(V[i]+V[(i+1)%N]);
+  const t0=new Float64Array(N), b0=new Float64Array(N);
+  for(let i=0;i<N;i++){const j=(i+1)%N,v=(V[i]+V[j])/2;
+    const a=(V[j]*V[j]-V[i]*V[i])/(2*DS[i]), d=PHY.CD*v*v, net=a+d;
+    if(net>=0) t0[i]=Math.min(1,net/Math.min(PHY.POW/Math.max(v,8),trac(v,g)));
+    else if(-net>1.5) b0[i]=Math.min(1,-net/brk(v,g));
+  }
+  const THR=new Float64Array(N), BRK=new Float64Array(N), W=2;
+  for(let i=0;i<N;i++){let a=0,b=0;for(let j=-W;j<=W;j++){a+=t0[(i+j+N)%N];b+=b0[(i+j+N)%N];}THR[i]=a/(2*W+1);BRK[i]=b/(2*W+1);}
+  let vmax=0,vmin=1e9;for(let i=0;i<N;i++){vmax=Math.max(vmax,V[i]);vmin=Math.min(vmin,V[i]);}
+  return {V,T,THR,BRK,grip:g,corr:f,vmax,vmin};
+}
+/* ---------- app ---------- */
+(function(){
+const REC=94.080, LEN=5543, PRE=2.5, POST=2.2, HALF_W=7.3;
+const trk=buildTrack(RAW,LEN), lap=solveLap(trk,REC);
+const {N,X,Y,S,DS,K,L}=trk, {V,T,THR,BRK}=lap;
+const $=id=>document.getElementById(id);
+const stage=$('stage'), view=$('view'), ctx=view.getContext('2d');
+const mini=$('mini'), mctx=mini.getContext('2d'), trace=$('trace'), tctx=trace.getContext('2d');
+const dock=document.querySelector('.dock');
+const FONT='"Kanit","Arial Narrow",Arial,sans-serif';
+const store=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k);localStorage.setItem(k,v);}catch(e){return null;}};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+/* colours come from the CSS tokens so the scene follows the light/dark theme */
+const C={};
+const KEYS=['grass','grass2','verge','asphalt','pit','kerb-r','kerb-w','paint','palm','palm2','roof','rib','ink','muted','car','go','lift','stop','mini','hair'];
+function readColors(){const cs=getComputedStyle(document.documentElement);KEYS.forEach(k=>C[k]=cs.getPropertyValue('--'+k).trim());}
+
+/* ---- geometry helpers ---- */
+const wrap=i=>((i%N)+N)%N, mod=s=>((s%L)+L)%L;
+function idxAtS(s){s=mod(s);let lo=0,hi=N-1;while(lo<hi){const m=(lo+hi+1)>>1;if(S[m]<=s)lo=m;else hi=m-1;}return lo;}
+function cr(i,f){
+  const a=wrap(i-1),b=wrap(i),c=wrap(i+1),d=wrap(i+2),f2=f*f,f3=f2*f;
+  const q=(p0,p1,p2,p3)=>0.5*(2*p1+(-p0+p2)*f+(2*p0-5*p1+4*p2-p3)*f2+(-p0+3*p1-3*p2+p3)*f3);
+  const dq=(p0,p1,p2,p3)=>0.5*((-p0+p2)+2*(2*p0-5*p1+4*p2-p3)*f+3*(-p0+3*p1-3*p2+p3)*f2);
+  return {x:q(X[a],X[b],X[c],X[d]),y:q(Y[a],Y[b],Y[c],Y[d]),h:Math.atan2(dq(Y[a],Y[b],Y[c],Y[d]),dq(X[a],X[b],X[c],X[d]))};
+}
+/* point at distance s, shifted `off` metres to the left of travel (negative = right) */
+function atS(s,off){s=mod(s);const i=idxAtS(s),p=cr(i,(s-S[i])/DS[i]);if(off){p.x-=Math.sin(p.h)*off;p.y+=Math.cos(p.h)*off;}return p;}
+function timeAtS(s){s=clamp(s,0,L-0.01);const i=idxAtS(s);return T[i]+(s-S[i])/DS[i]*(T[i+1]-T[i]);}
+function sample(t){
+  const tt=((t%REC)+REC)%REC;let lo=0,hi=N-1;while(lo<hi){const m=(lo+hi+1)>>1;if(T[m]<=tt)lo=m;else hi=m-1;}
+  const i=lo,j=wrap(i+1),f=(tt-T[i])/(T[i+1]-T[i]),p=cr(i,f);
+  p.i=i;p.s=S[i]+f*DS[i];p.v=V[i]+(V[j]-V[i])*f;p.thr=THR[i]+(THR[j]-THR[i])*f;p.brk=BRK[i]+(BRK[j]-BRK[i])*f;return p;
+}
+const ST=new Uint8Array(N);                 // 0 throttle, 1 lifting, 2 braking
+for(let i=0;i<N;i++)ST[i]=BRK[i]>0.04?2:THR[i]>0.6?0:1;
+const stCol=c=>c===2?C.stop:c===1?C.lift:C.go;
+
+/* ---- corners ---- */
+const TURNS=[[1,689,'Pangkor Laut'],[2,789,'Pangkor Laut'],[3,1000,''],[4,1589,'Langkawi'],[5,1929,'Genting'],[6,2168,'Genting'],
+  [7,2563,'KLIA'],[8,2688,'KLIA'],[9,3168,'Berjaya Tioman'],[10,3298,''],[11,3527,''],[12,3857,'Kenyir Lake'],[13,4097,'Kenyir Lake'],
+  [14,4227,'Sunway Lagoon'],[15,5167,'']].map(([n,s,name])=>{
+    s*=trk.k;const side=-Math.sign(K[idxAtS(s)])||1,p=atS(s,side*(HALF_W+16));
+    return {n,s,name,x:p.x,y:p.y,side};
+  });
+const BOARDS=[];
+[1,4,9,15].forEach(n=>{const t=TURNS[n-1];[150,100,50].forEach(d=>{const p=atS(t.s-30-d,t.side*(HALF_W+5));BOARDS.push({d,x:p.x,y:p.y});});});
+
+/* ---- static world paths (metres) ---- */
+const trackPath=new Path2D();
+for(let i=0;i<N;i++)i?trackPath.lineTo(X[i],Y[i]):trackPath.moveTo(X[i],Y[i]);
+trackPath.closePath();
+const kerbPath=new Path2D();
+{let on=false;for(let i=0;i<N;i++){if(Math.abs(K[i])>0.0035){on?kerbPath.lineTo(X[i],Y[i]):kerbPath.moveTo(X[i],Y[i]);on=true;}else on=false;}}
+const pitPath=new Path2D();
+{const a=L-240,b=L+560,sm=x=>{x=clamp(x,0,1);return x*x*(3-2*x);};
+ for(let s=a,first=true;s<=b;s+=6,first=false){const r=Math.min(sm((s-a)/90),sm((b-s)/90)),p=atS(s,-17*r);first?pitPath.moveTo(p.x,p.y):pitPath.lineTo(p.x,p.y);}}
+function strip(s0,s1,o0,o1){
+  const poly=new Path2D(),ribs=new Path2D(),A=[],B=[];
+  for(let s=s0;s<=s1;s+=6){A.push(atS(s,o0));B.push(atS(s,o1));}
+  A.forEach((p,i)=>i?poly.lineTo(p.x,p.y):poly.moveTo(p.x,p.y));
+  for(let i=B.length-1;i>=0;i--)poly.lineTo(B[i].x,B[i].y);
+  poly.closePath();
+  for(let i=1;i<A.length-1;i+=2){ribs.moveTo(A[i].x,A[i].y);ribs.lineTo(B[i].x,B[i].y);}
+  const m=Math.floor(A.length/2);
+  return {poly,ribs,cx:(A[m].x+B[m].x)/2,cy:(A[m].y+B[m].y)/2};
+}
+const BUILD=[strip(L-160,L+420,20,36),strip(4420*trk.k,5010*trk.k,20,36),strip(L-90,L+330,-28,-42)];
+BUILD[0].label='Main grandstand';BUILD[2].label='Pit building';
+
+/* oil palms around the circuit, on a planting grid, kept clear of the track */
+const CELL=120,buckets=new Map();
+{let minX=1e9,maxX=-1e9,minY=1e9,maxY=-1e9;
+ for(let i=0;i<N;i++){minX=Math.min(minX,X[i]);maxX=Math.max(maxX,X[i]);minY=Math.min(minY,Y[i]);maxY=Math.max(maxY,Y[i]);}
+ const M=330,g=10,ox=minX-M,oy=minY-M,cols=Math.ceil((maxX-minX+2*M)/g),rows=Math.ceil((maxY-minY+2*M)/g),occ=new Uint8Array(cols*rows),R=8;
+ for(let i=0;i<N;i+=2){const cx=Math.floor((X[i]-ox)/g),cy=Math.floor((Y[i]-oy)/g);
+   for(let a=-R;a<=R;a++)for(let b=-R;b<=R;b++)if(a*a+b*b<=R*R)occ[(cy+b)*cols+cx+a]=1;}
+ const rnd=n=>{const v=Math.sin(n*127.1+311.7)*43758.5453;return v-Math.floor(v);};
+ let n=0;
+ for(let gy=0;gy*13<rows*g;gy++)for(let gx=0;gx*15<cols*g;gx++){
+   n++;const x=ox+gx*15+(gy%2)*7.5+(rnd(n)-.5)*4,y=oy+gy*13+(rnd(n+.5)-.5)*4;
+   const c=Math.floor((y-oy)/g)*cols+Math.floor((x-ox)/g);
+   if(occ[c]||rnd(n+.25)<0.06)continue;
+   const key=Math.floor(x/CELL)+','+Math.floor(y/CELL);let arr=buckets.get(key);if(!arr)buckets.set(key,arr=[]);
+   arr.push(x,y,3.6+rnd(n+.75)*1.6);
+ }}
+let sprite;
+function buildSprite(){
+  sprite=document.createElement('canvas');sprite.width=sprite.height=44;const g=sprite.getContext('2d');
+  g.translate(22,22);g.fillStyle=C.palm;g.beginPath();g.arc(0,0,14,0,7);g.fill();
+  g.strokeStyle=C.palm2;g.lineWidth=3.4;g.lineCap='round';
+  for(let k=0;k<8;k++){const a=k*Math.PI/4+.2;g.beginPath();g.moveTo(0,0);g.lineTo(Math.cos(a)*19,Math.sin(a)*19);g.stroke();}
+  g.fillStyle=C.palm;g.beginPath();g.arc(0,0,3.2,0,7);g.fill();
+}
+
+/* ---- state ---- */
+const st={t:-PRE,playing:false,rate:1,mode:'north',zi:2,sound:store('lo_mute')!=='1',doneShown:false};
+const ZOOMS=[0.5,0.72,1,1.4,1.9];
+const cam={x:0,y:0,rot:0,span:250,snap:true};
+let vw=0,vh=0,dpr=1,dockH=0,narrow=false,miniBase,traceBase,mT,tW=0,tH=0;
+
+/* ---- drone view ---- */
+function render(dt){
+  const p=sample(st.t), W=vw, H=vh;
+  // camera: look a little ahead of the car, pull back as speed rises
+  const car=st.mode==='car', look=p.v*(car?0.38:0.3);
+  const tx=p.x+Math.cos(p.h)*look, ty=p.y+Math.sin(p.h)*look;
+  const tspan=((narrow?115:165)+(narrow?1.0:1.3)*p.v)/ZOOMS[st.zi], trot=car?p.h-Math.PI/2:0;
+  if(cam.snap){cam.x=tx;cam.y=ty;cam.span=tspan;cam.rot=trot;cam.snap=false;}
+  else{
+    const k=1-Math.exp(-dt*7),kr=1-Math.exp(-dt*4.5),kz=1-Math.exp(-dt*2.2);
+    cam.x+=(tx-cam.x)*k;cam.y+=(ty-cam.y)*k;cam.span+=(tspan-cam.span)*kz;
+    let d=trot-cam.rot;d=Math.atan2(Math.sin(d),Math.cos(d));cam.rot+=d*kr;
+  }
+  const free=Math.max(160,H-dockH), sc=Math.min(W,free)/cam.span, ax=W/2, ay=free/2+(narrow?34:0)+(car?free*0.05:0);
+  const cs=Math.cos(cam.rot), sn=Math.sin(cam.rot);
+  const w2s=(x,y)=>{const rx=(x-cam.x)*sc,ry=-(y-cam.y)*sc;return [ax+rx*cs-ry*sn,ay+rx*sn+ry*cs];};
+
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle=C.grass;ctx.fillRect(0,0,W,H);
+  ctx.translate(ax,ay);ctx.rotate(cam.rot);ctx.scale(sc,-sc);ctx.translate(-cam.x,-cam.y);
+  const Rv=Math.hypot(W,H)/sc*0.8;
+
+  // mown stripes
+  ctx.fillStyle=C.grass2;
+  for(let y0=Math.floor((cam.y-Rv)/36)*36;y0<cam.y+Rv;y0+=36)ctx.fillRect(cam.x-Rv,y0,2*Rv,18);
+  // palms
+  const bx0=Math.floor((cam.x-Rv)/CELL),bx1=Math.floor((cam.x+Rv)/CELL),by0=Math.floor((cam.y-Rv)/CELL),by1=Math.floor((cam.y+Rv)/CELL);
+  for(let bx=bx0;bx<=bx1;bx++)for(let by=by0;by<=by1;by++){const a=buckets.get(bx+','+by);if(!a)continue;
+    for(let i=0;i<a.length;i+=3){const r=a[i+2];ctx.drawImage(sprite,a[i]-r,a[i+1]-r,2*r,2*r);}}
+  // grandstands and pit building
+  ctx.lineWidth=0.5;ctx.strokeStyle=C.rib;ctx.fillStyle=C.roof;
+  BUILD.forEach(b=>{ctx.fill(b.poly);ctx.stroke(b.ribs);});
+  // track
+  ctx.lineJoin='round';ctx.lineCap='butt';
+  ctx.strokeStyle=C.verge;ctx.lineWidth=2*HALF_W+10;ctx.stroke(trackPath);
+  ctx.strokeStyle=C.pit;ctx.lineWidth=7;ctx.stroke(pitPath);
+  ctx.strokeStyle=C['kerb-w'];ctx.lineWidth=2*HALF_W+3.4;ctx.stroke(kerbPath);
+  ctx.strokeStyle=C['kerb-r'];ctx.setLineDash([3,3]);ctx.stroke(kerbPath);ctx.setLineDash([]);
+  ctx.strokeStyle=C.paint;ctx.lineWidth=2*HALF_W;ctx.stroke(trackPath);
+  ctx.strokeStyle=C.asphalt;ctx.lineWidth=2*HALF_W-0.7;ctx.stroke(trackPath);
+  // start line and grid
+  if(Math.hypot(cam.x-X[0],cam.y-Y[0])<Rv+200){
+    const p0=atS(0);ctx.save();ctx.translate(p0.x,p0.y);ctx.rotate(p0.h);
+    for(let r=0;r<14;r++)for(let c=0;c<2;c++){ctx.fillStyle=(r+c)%2?'#14171a':C.paint;ctx.fillRect(c*0.9-0.9,-HALF_W+0.35+r*((2*HALF_W-0.7)/14),0.9,(2*HALF_W-0.7)/14);}
+    ctx.restore();
+    ctx.strokeStyle=C.paint;ctx.lineWidth=0.3;
+    for(let n=0;n<20;n++){const g=atS(-10-n*8,n%2?-2.8:2.8);ctx.save();ctx.translate(g.x,g.y);ctx.rotate(g.h);
+      ctx.beginPath();ctx.moveTo(-1.6,-1.3);ctx.lineTo(0,-1.3);ctx.lineTo(0,1.3);ctx.lineTo(-1.6,1.3);ctx.stroke();ctx.restore();}
+  }
+  // trail: where the car has just been, coloured by what the driver was doing
+  {const TR=260,i0=idxAtS(p.s-TR);let i=i0,guard=0;ctx.lineWidth=1.5;
+   while(i!==p.i&&guard++<120){const j=wrap(i+1);let age=mod(p.s-S[j]);
+     ctx.globalAlpha=clamp(1-age/TR,0,1)*0.9;ctx.strokeStyle=stCol(ST[i]);
+     ctx.beginPath();ctx.moveTo(X[i],Y[i]);ctx.lineTo(X[j],Y[j]);ctx.stroke();i=j;}
+   ctx.globalAlpha=0.9;ctx.strokeStyle=stCol(ST[p.i]);ctx.beginPath();ctx.moveTo(X[p.i],Y[p.i]);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.globalAlpha=1;}
+
+  // ---- screen-space overlays ----
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  const on=(q,m)=>q[0]>-m&&q[0]<W+m&&q[1]>-m&&q[1]<H+m;
+  ctx.font='500 11px '+FONT;
+  BOARDS.forEach(b=>{const q=w2s(b.x,b.y);if(!on(q,30))return;
+    ctx.fillStyle='#f4f4f0';rr(ctx,q[0]-13,q[1]-8,26,16,2);ctx.fill();ctx.fillStyle='#14171a';ctx.fillText(b.d,q[0],q[1]+1);});
+  ctx.font='500 12px '+FONT;
+  BUILD.forEach(b=>{if(!b.label||sc<1.6)return;const q=w2s(b.cx,b.cy);if(!on(q,80))return;ctx.fillStyle='rgba(20,23,26,.72)';ctx.fillText(b.label,q[0],q[1]+1);});
+  ctx.font='600 13px '+FONT;
+  TURNS.forEach(t=>{const q=w2s(t.x,t.y);if(!on(q,30))return;
+    ctx.fillStyle='#14171a';rr(ctx,q[0]-12,q[1]-12,24,24,5);ctx.fill();
+    ctx.strokeStyle='#f4f4f0';ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle='#f4f4f0';ctx.fillText(t.n,q[0],q[1]+1);});
+  // the car: a circle
+  const q=w2s(p.x,p.y), r=clamp(sc*2.5,9,15);
+  if(p.brk>0.04){const g=ctx.createRadialGradient(q[0],q[1],r*0.8,q[0],q[1],r*2.4);
+    g.addColorStop(0,'rgba(255,40,50,'+(0.35+0.4*p.brk)+')');g.addColorStop(1,'rgba(255,40,50,0)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(q[0],q[1],r*2.4,0,7);ctx.fill();}
+  ctx.fillStyle='rgba(0,0,0,.28)';ctx.beginPath();ctx.arc(q[0]+1.5,q[1]+2.5,r+1,0,7);ctx.fill();
+  ctx.fillStyle=C.car;ctx.beginPath();ctx.arc(q[0],q[1],r,0,7);ctx.fill();
+  ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle='#fff';ctx.font='600 '+Math.round(r*1.2)+'px '+FONT;ctx.fillText('5',q[0],q[1]+1);
+
+  drawMini(p);drawTrace(p);sound(p);hud(p);
+}
+function rr(g,x,y,w,h,r){g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();}
+const lapIdx=p=>st.t<0?0:st.t>=REC?N:p.i, lapS=p=>st.t<0?0:st.t>=REC?L:p.s;
+
+/* ---- mini map ---- */
+function fitCanvas(c){const w=c.clientWidth,h=c.clientHeight;c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);return [w,h];}
+function buildMini(){
+  const [w,h]=fitCanvas(mini);let minX=1e9,maxX=-1e9,minY=1e9,maxY=-1e9;
+  for(let i=0;i<N;i++){minX=Math.min(minX,X[i]);maxX=Math.max(maxX,X[i]);minY=Math.min(minY,Y[i]);maxY=Math.max(maxY,Y[i]);}
+  const pad=9,s=Math.min((w-2*pad)/(maxX-minX),(h-2*pad)/(maxY-minY));
+  mT={s,ox:(w-(maxX-minX)*s)/2-minX*s,oy:(h+(maxY-minY)*s)/2+minY*s,w,h,lw:w>180?4:3};
+  miniBase=document.createElement('canvas');miniBase.width=mini.width;miniBase.height=mini.height;
+  const g=miniBase.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
+  g.lineJoin='round';g.strokeStyle=C.mini;g.lineWidth=mT.lw;g.beginPath();
+  for(let i=0;i<N;i++){const x=mT.ox+X[i]*s,y=mT.oy-Y[i]*s;i?g.lineTo(x,y):g.moveTo(x,y);}
+  g.closePath();g.stroke();
+  const p0=atS(0),x0=mT.ox+p0.x*s,y0=mT.oy-p0.y*s,nx=-Math.sin(p0.h),ny=Math.cos(p0.h);
+  g.strokeStyle=C.ink;g.lineWidth=2;g.beginPath();g.moveTo(x0+nx*6,y0-ny*6);g.lineTo(x0-nx*6,y0+ny*6);g.stroke();
+}
+function runs(g,iEnd,mx,my,lw){
+  g.lineWidth=lw;g.lineJoin='round';g.lineCap='round';let i=0;
+  while(i<iEnd){let j=i;while(j<iEnd&&ST[j]===ST[i])j++;g.strokeStyle=stCol(ST[i]);g.beginPath();
+    for(let k=i;k<=j;k++){const w=k%N,x=mx(k,w),y=my(k,w);k===i?g.moveTo(x,y):g.lineTo(x,y);}g.stroke();i=j;}
+}
+function drawMini(p){
+  const g=mctx;g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,mini.width,mini.height);g.drawImage(miniBase,0,0);
+  g.setTransform(dpr,0,0,dpr,0,0);
+  runs(g,lapIdx(p),(k,w)=>mT.ox+X[w]*mT.s,(k,w)=>mT.oy-Y[w]*mT.s,mT.lw-1);
+  const x=mT.ox+p.x*mT.s,y=mT.oy-p.y*mT.s;
+  g.fillStyle='#fff';g.beginPath();g.arc(x,y,6.5,0,7);g.fill();g.fillStyle=C.car;g.beginPath();g.arc(x,y,4.6,0,7);g.fill();
+}
+
+/* ---- speed trace ---- */
+const VTOP=340, TP={l:2,r:2,t:17,b:3};
+function buildTrace(){
+  [tW,tH]=fitCanvas(trace);
+  traceBase=document.createElement('canvas');traceBase.width=trace.width;traceBase.height=trace.height;
+  const g=traceBase.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);
+  const iw=tW-TP.l-TP.r,ih=tH-TP.t-TP.b,yv=v=>TP.t+ih-(v/VTOP)*ih;
+  g.font='500 10px '+FONT;g.textBaseline='middle';g.textAlign='left';
+  [100,200,300].forEach(v=>{g.strokeStyle=C.hair;g.lineWidth=1;g.beginPath();g.moveTo(TP.l,yv(v)+.5);g.lineTo(tW-TP.r,yv(v)+.5);g.stroke();
+    g.fillStyle=C.muted;g.fillText(v,TP.l+2,yv(v)-6);});
+  g.textAlign='center';g.font='500 11px '+FONT;let lastX=-99;
+  TURNS.forEach(t=>{const x=TP.l+t.s/L*iw;g.strokeStyle=C.hair;g.beginPath();g.moveTo(x+.5,TP.t-3);g.lineTo(x+.5,tH-TP.b);g.stroke();
+    if(x-lastX>=13){g.fillStyle=C.muted;g.fillText(t.n,x,7);lastX=x;}});
+  runs(g,N,(k,w)=>TP.l+(k===N?L:S[k])/L*iw,(k,w)=>yv(V[w]*3.6),2);
+}
+function drawTrace(p){
+  const g=tctx;g.setTransform(1,0,0,1,0,0);g.clearRect(0,0,trace.width,trace.height);g.drawImage(traceBase,0,0);
+  g.setTransform(dpr,0,0,dpr,0,0);
+  const iw=tW-TP.l-TP.r,ih=tH-TP.t-TP.b,x=TP.l+lapS(p)/L*iw,y=TP.t+ih-(p.v*3.6/VTOP)*ih;
+  g.strokeStyle=C.ink;g.lineWidth=1.5;g.beginPath();g.moveTo(x,TP.t-3);g.lineTo(x,tH);g.stroke();
+  g.fillStyle=C.ink;g.beginPath();g.arc(x,y,4,0,7);g.fill();
+}
+
+/* ---- HUD text ---- */
+const el={clock:$('clock'),spd:$('spd'),gear:$('gear'),thr:$('thr'),brk:$('brk'),status:$('status'),next:$('next'),dist:$('dist'),play:$('play')};
+function setFixed(node,str){
+  if(node.childNodes.length!==str.length){node.textContent='';for(const ch of str){const s=document.createElement('span');s.className='fx'+(/\d/.test(ch)?'':' p');s.textContent=ch;node.appendChild(s);}return;}
+  for(let i=0;i<str.length;i++){const c=node.childNodes[i];if(c.textContent!==str[i])c.textContent=str[i];}
+}
+const fmt=t=>{const ms=Math.min(94080,Math.floor(clamp(t,0,REC)*1000+1e-6)),m=Math.floor(ms/60000),s=Math.floor(ms%60000/1000);
+  return m+':'+String(s).padStart(2,'0')+'.'+String(ms%1000).padStart(3,'0');};
+const txt=(n,v)=>{if(n.textContent!==v)n.textContent=v;};
+let lastSec=-1;
+function hud(p){
+  setFixed(el.clock,fmt(st.t));
+  const k=p.v*3.6;txt(el.spd,String(Math.round(k)));txt(el.gear,String(curGear));
+  el.thr.style.width=(p.brk>0.04?0:Math.round(p.thr*100))+'%';el.brk.style.width=Math.round(p.brk*100)+'%';
+  const s=p.brk>0.04?['brake','Braking']:p.thr>0.97?['full','Full throttle']:p.thr>0.05?['part','Part throttle']:['part','Lifting off'];
+  if(el.status.dataset.s!==s[0])el.status.dataset.s=s[0];txt(el.status,s[1]);
+  let best=null,bd=1e9;TURNS.forEach(t=>{const d=mod(t.s+35-p.s);if(d<bd){bd=d;best=t;}});
+  const d=bd-35;txt(el.next,'Turn '+best.n+(best.name?', '+best.name:''));
+  txt(el.dist,d>45?'in '+Math.round(d/10)*10+' m':'In the corner now');
+  const sec=Math.round(clamp(st.t,0,REC));if(sec!==lastSec){lastSec=sec;trace.setAttribute('aria-valuenow',sec);trace.setAttribute('aria-valuetext',fmt(st.t)+', '+Math.round(k)+' km/h');}
+}
+
+/* ---- sound: the same synthesised engine, brake and tyre model as the Lights Out site ---- */
+const ACC=new Float64Array(N);
+{const raw=new Float64Array(N);for(let i=0;i<N;i++){const j=wrap(i+1);raw[i]=(V[j]*V[j]-V[i]*V[i])/(2*DS[i]);}
+ for(let i=0;i<N;i++){let s=0;for(let k=-4;k<=4;k++)s+=raw[wrap(i+k)];ACC[i]=s/9;}}
+const TOP=[0,96,132,168,204,243,282,316,345];
+let AC=null,master=null,eng=null,fxl=null,lastGear=0,braking=false,curGear=1;
+function audio(){
+  if(!AC){const A=window.AudioContext||window.webkitAudioContext;if(!A)return null;try{AC=new A();}catch(e){return null;}
+    master=AC.createGain();master.gain.value=.55;master.connect(AC.destination);}
+  if(AC.state==='suspended')AC.resume();return AC;
+}
+function tone(f,dur,type,vol,when){const a=audio();if(!a)return;const t=a.currentTime+(when||0),o=a.createOscillator(),g=a.createGain();
+  o.type=type||'sine';o.frequency.setValueAtTime(f,t);g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(vol||.15,t+.012);
+  g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g);g.connect(master);o.start(t);o.stop(t+dur+.05);}
+const chime=()=>{tone(880,.14,'sine',.14);tone(1320,.3,'sine',.14,.13);};
+/* One oscillator runs at the engine-cycle rate (rpm/120) with a harmonic recipe whose 6th harmonic is the V6 firing
+   frequency; it is soft-clipped, shaped by exhaust resonances, and mixed with intake noise and a faint turbo whistle. */
+function build(a,dest,rpm0,vol){
+  if(!a.__w){const M=25,re=new Float32Array(M),im=new Float32Array(M),H={1:.10,2:.14,3:.42,4:.10,5:.09,6:1,7:.08,8:.07,9:.34,10:.05,12:.52,15:.16,18:.26,21:.07,24:.12};
+    for(const h in H)im[h]=H[h];a.__w=a.createPeriodicWave(re,im);
+    const n=a.sampleRate,buf=a.createBuffer(1,n,n),d=buf.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1;a.__n=buf;
+    const cv=new Float32Array(1024);for(let i=0;i<1024;i++)cv[i]=Math.tanh(2.6*(i/511.5-1));a.__c=cv;}
+  const o1=a.createOscillator(),o2=a.createOscillator(),o2g=a.createGain(),mix=a.createGain(),sh=a.createWaveShaper(),body=a.createBiquadFilter(),
+    pk=a.createBiquadFilter(),lp=a.createBiquadFilter(),g=a.createGain(),ns=a.createBufferSource(),nbp=a.createBiquadFilter(),ng=a.createGain(),
+    wh=a.createOscillator(),wg=a.createGain(),lfo=a.createOscillator(),lg=a.createGain(),now=a.currentTime;
+  o1.setPeriodicWave(a.__w);o2.setPeriodicWave(a.__w);o2g.gain.value=.55;mix.gain.value=.5;sh.curve=a.__c;sh.oversample='2x';
+  body.type='peaking';body.frequency.value=260;body.Q.value=1;body.gain.value=5;
+  pk.type='peaking';pk.frequency.value=1150;pk.Q.value=1.4;pk.gain.value=7;
+  lp.type='lowpass';lp.Q.value=.8;
+  ns.buffer=a.__n;ns.loop=true;nbp.type='bandpass';nbp.frequency.value=3000;nbp.Q.value=.7;
+  wh.type='sine';lfo.type='sine';lfo.frequency.value=13;lg.gain.value=.35;
+  o1.connect(mix);o2.connect(o2g);o2g.connect(mix);mix.connect(sh);sh.connect(body);body.connect(pk);pk.connect(lp);lp.connect(g);
+  ns.connect(nbp);nbp.connect(ng);ng.connect(g);wh.connect(wg);wg.connect(g);lfo.connect(lg);lg.connect(o1.frequency);lg.connect(o2.frequency);g.connect(dest);
+  const src=[o1,o2,ns,wh,lfo];
+  function at(rpm,t,soft){[[o1.frequency,rpm/120],[o2.frequency,rpm/120*1.004],[lp.frequency,700+rpm*.34],[ng.gain,.015+Math.pow(rpm/12000,2)*.11],
+    [wh.frequency,1800+rpm*.33],[wg.gain,rpm>7000?.018:.004]].forEach(x=>soft?x[0].setTargetAtTime(x[1],t,.04):x[0].setValueAtTime(x[1],t));}
+  at(rpm0,now,false);g.gain.setValueAtTime(.0001,now);g.gain.linearRampToValueAtTime(vol,now+.15);src.forEach(n=>n.start(now));
+  return {set:rpm=>at(rpm,a.currentTime,true),
+    load:on=>g.gain.setTargetAtTime(on?vol:vol*.5,a.currentTime,.05),
+    cut:()=>{const t=a.currentTime;g.gain.setValueAtTime(vol,t);g.gain.linearRampToValueAtTime(vol*.2,t+.025);g.gain.linearRampToValueAtTime(vol,t+.085);},
+    stop:()=>{const n=a.currentTime;g.gain.cancelScheduledValues(n);g.gain.setTargetAtTime(.0001,n,.08);src.forEach(x=>{try{x.stop(n+.6);}catch(e){}});}};
+}
+function fxBuild(a){
+  const layer=(fq,Q)=>{const src=a.createBufferSource(),bp=a.createBiquadFilter(),g=a.createGain();src.buffer=a.__n;src.loop=true;
+    bp.type='bandpass';bp.frequency.value=fq;bp.Q.value=Q;g.gain.value=0;src.connect(bp);bp.connect(g);g.connect(master);src.start();return {g,src,bp};};
+  const br=layer(2400,.8),hiss=layer(6500,1.2),ty=layer(950,5);
+  return {brake:x=>{const t=a.currentTime;br.g.gain.setTargetAtTime(x*.16,t,.03);hiss.g.gain.setTargetAtTime(x*.07,t,.03);},
+    tyre:x=>{ty.g.gain.setTargetAtTime(x*.1,a.currentTime,.05);ty.bp.frequency.setTargetAtTime(850+x*350,a.currentTime,.08);},
+    stop:()=>{const t=a.currentTime;[br,hiss,ty].forEach(l=>{l.g.gain.setTargetAtTime(0,t,.05);try{l.src.stop(t+.4);}catch(e){}});}};
+}
+function soundStop(){if(eng){eng.stop();fxl.stop();eng=fxl=null;}}
+function sound(p){
+  // gears: shift up at the limiter when accelerating, come down the box early when braking
+  const ac=ACC[p.i],kmh=p.v*3.6;braking=ac<-6?true:ac>.5?false:braking;
+  let g=1;const lim=braking?.9:1;while(g<8&&kmh>TOP[g]*lim)g++;curGear=g;
+  if(!(st.sound&&st.playing)){soundStop();lastGear=0;return;}
+  if(!eng){const a=audio();if(!a)return;eng=build(a,master,10500,.15);fxl=fxBuild(a);lastGear=0;}
+  if(lastGear&&g>lastGear)eng.cut();lastGear=g;
+  eng.set(Math.max(5200,11900*kmh/TOP[g]));eng.load(ac>-1);
+  fxl.brake(clamp((-ac-6)/38,0,1));fxl.tyre(clamp((p.v*p.v*Math.abs(K[p.i])-20)/38,0,1));
+}
+
+/* ---- controls ---- */
+const intro=$('intro'),done=$('done');
+function setPlaying(v){st.playing=v;el.play.textContent=v?'Pause':'Play';}
+function restart(){st.t=-PRE;cam.snap=true;st.doneShown=false;done.hidden=true;intro.hidden=true;setPlaying(true);}
+function seek(t){lastGear=0;st.t=clamp(t,0,REC-0.001);cam.snap=true;st.doneShown=false;done.hidden=true;}
+$('start').onclick=restart;$('again').onclick=restart;$('restart').onclick=restart;
+el.play.onclick=()=>{if(st.t>=REC)restart();else{intro.hidden=true;setPlaying(!st.playing);}};
+document.querySelectorAll('[data-rate]').forEach(b=>b.onclick=()=>{st.rate=+b.dataset.rate;
+  document.querySelectorAll('[data-rate]').forEach(o=>o.setAttribute('aria-pressed',o===b));});
+$('cam').onclick=e=>{st.mode=st.mode==='north'?'car':'north';e.currentTarget.textContent='Camera: '+(st.mode==='north'?'north up':'car up');};
+$('zin').onclick=()=>{st.zi=Math.min(ZOOMS.length-1,st.zi+1);};
+$('zout').onclick=()=>{st.zi=Math.max(0,st.zi-1);};
+$('snd').onclick=e=>{st.sound=!st.sound;e.currentTarget.setAttribute('aria-pressed',st.sound);e.currentTarget.textContent=st.sound?'Sound on':'Sound off';store('lo_mute',st.sound?'0':'1');if(st.sound)chime();};
+$('snd').setAttribute('aria-pressed',st.sound);$('snd').textContent=st.sound?'Sound on':'Sound off';$('sndnote').textContent=st.sound?'Sound is on. You can switch it off in the controls.':'Sound is off, as you set it on Lights Out. You can switch it on in the controls.';
+function scrub(e){const r=trace.getBoundingClientRect();seek(timeAtS(clamp((e.clientX-r.left-TP.l)/(r.width-TP.l-TP.r),0,1)*L));intro.hidden=true;}
+trace.addEventListener('pointerdown',e=>{trace.setPointerCapture(e.pointerId);scrub(e);});
+trace.addEventListener('pointermove',e=>{if(e.buttons||e.pointerType==='touch'&&trace.hasPointerCapture(e.pointerId))scrub(e);});
+trace.addEventListener('keydown',e=>{const d={ArrowLeft:-2,ArrowRight:2,ArrowDown:-2,ArrowUp:2}[e.key];
+  if(d){e.preventDefault();seek(clamp(st.t,0,REC)+d);}else if(e.key==='Home'){e.preventDefault();seek(0);}});
+document.addEventListener('keydown',e=>{if(e.code==='Space'&&!(e.target instanceof HTMLButtonElement)){e.preventDefault();el.play.click();}});
+$('stats').textContent='Average '+(L/REC*3.6).toFixed(1)+' km/h over 5.543 km. Top speed in this simulation '+Math.round(lap.vmax*3.6)+' km/h, slowest corner '+Math.round(lap.vmin*3.6)+' km/h.';
+
+/* ---- sizing, theme, loop ---- */
+function resize(){
+  dpr=Math.min(2,window.devicePixelRatio||1);vw=stage.clientWidth;vh=stage.clientHeight;
+  view.width=Math.round(vw*dpr);view.height=Math.round(vh*dpr);narrow=vw<=900;dockH=dock.offsetHeight+12;
+  buildMini();buildTrace();
+}
+function retheme(){readColors();buildSprite();buildMini();buildTrace();}
+readColors();buildSprite();resize();
+new ResizeObserver(resize).observe(stage);
+if(window.matchMedia)matchMedia('(prefers-color-scheme: dark)').addEventListener('change',retheme);
+new MutationObserver(retheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(buildTrace);
+let last=performance.now();
+function frame(now){
+  const dt=Math.min(0.05,(now-last)/1000);last=now;
+  if(st.playing){
+    st.t+=dt*st.rate;
+    if(st.t>=REC&&!st.doneShown){st.doneShown=true;done.hidden=false;if(st.sound)chime();}
+    if(st.t>=REC+POST){st.t=REC+POST;setPlaying(false);}
+  }
+  render(dt);requestAnimationFrame(frame);
+}
+setPlaying(false);requestAnimationFrame(frame);
+window.__sim={st,seek,restart,setPlaying};
+})();
+</script>
+</body>
+</html>
