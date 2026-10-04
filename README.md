@@ -31,7 +31,7 @@ To serve it from the root of a user site, put both HTML files in the `<username>
 
 ## Things to know
 
-- **Data is fixed in the page.** Standings are as of round 15 and session results were last updated on 3 October 2026. Nothing is fetched live, so update the numbers in `index.html` by hand.
+- **Data is fixed in the page.** Standings are as of round 16 (the Bahrain Grand Prix in Malaysia) and the race result was added on 4 October 2026. Nothing is fetched live, so update the numbers in `index.html` by hand.
 - **Fonts** load from Google Fonts. The page falls back to system fonts if they are unavailable.
 - **Sound** is generated in the browser with the Web Audio API. There are no audio files.
 - **Car tech section** is present in the code but hidden. Remove the `hidden` attribute from `<section id="tech">` to bring it back; it loads three.js from cdnjs when shown.
