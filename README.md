@@ -6,6 +6,7 @@ A Formula 1 trivia site built around the 2026 Bahrain Grand Prix in Malaysia, he
 
 - A start-lights reaction test with synthesised engine sound
 - The race weekend: circuit maps for Sepang and Sakhir, a simulated lap, session times and results, and Sepang's history
+- A race report from Sepang: the lead story, a lap-by-lap race tape with the safety car periods, and twelve stories you can filter by chaos, problems, failures and victory
 - 2026 championship standings for drivers and teams
 - F1 teams, with a head-to-head card for each pair of teammates
 - F1 history, season by season since 1950
@@ -31,7 +32,7 @@ To serve it from the root of a user site, put both HTML files in the `<username>
 
 ## Things to know
 
-- **Data is fixed in the page.** Standings are as of round 16 (the Bahrain Grand Prix in Malaysia) and the race result was added on 4 October 2026. Nothing is fetched live, so update the numbers in `index.html` by hand.
+- **Data is fixed in the page.** Standings are as of round 16 (the Bahrain Grand Prix in Malaysia) and the race result was added on 4 October 2026. Nothing is fetched live, so update the numbers in `index.html` by hand. The race report was compiled on 5 October 2026 from published race reports, which are linked at the bottom of that section; its text lives in the `RP_` lists in `index.html`, each entry in English and Bahasa Melayu.
 - **Fonts** load from Google Fonts. The page falls back to system fonts if they are unavailable.
 - **Sound** is generated in the browser with the Web Audio API. There are no audio files.
 - **Car tech section** is present in the code but hidden. Remove the `hidden` attribute from `<section id="tech">` to bring it back; it loads three.js from cdnjs when shown.
