@@ -481,6 +481,12 @@ footer{background:#111;border-top:3px solid var(--crim);margin-top:64px;padding-
 @media (min-width:820px){.mapbox{min-height:clamp(430px,32vw,540px)} .mapbox svg{height:300px}}
 @container (min-width:540px){.mapbox svg{height:auto;grid-column:1 / -1}}
 #lapbtn,.maprow>div{position:relative;z-index:1}
+#lapbtn{white-space:nowrap}
+@container (max-width:539.98px){
+  .maprow{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 16px;grid-column:1 / -1;grid-row:2;position:relative;z-index:1}
+  #lapbtn{flex:none}
+  .maprow>div{flex:1 1 120px;max-width:none;min-width:0}
+}
 /* link to the Sepang track simulation page */
 .simlink{display:flex;align-items:center;justify-content:space-between;gap:14px 28px;flex-wrap:wrap;margin-top:24px;padding:18px 22px;background:var(--surface);border-radius:8px;color:#fff;text-decoration:none}
 .simlink strong{display:block;font-family:var(--display);font-weight:600;text-transform:uppercase;font-size:1.3rem;line-height:1.1;letter-spacing:.2px}
